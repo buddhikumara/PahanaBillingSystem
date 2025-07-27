@@ -24,6 +24,7 @@
       <scope>provided</scope>
     </dependency>
 
+
     <!-- JSP (optional, only if you use JSP) -->
     <dependency>
       <groupId>javax.servlet.jsp</groupId>
@@ -38,6 +39,8 @@
       <artifactId>mysql-connector-java</artifactId>
       <version>8.0.33</version>
     </dependency>
+
+
 
     <!-- JUnit for testing -->
     <dependency>
