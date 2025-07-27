@@ -11,6 +11,16 @@ public class DBUtil {
     private static final String PASSWORD = ""; // Change if needed
 
     public static Connection getConnection() throws SQLException {
+        try {
+            // Explicitly load the MySQL JDBC driver
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
+
+
+
 }
