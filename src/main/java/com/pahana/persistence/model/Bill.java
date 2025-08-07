@@ -41,5 +41,23 @@ public class Bill {
         this.items = items;
     }
 
+    private double grandTotal; // Add this field
+
+    public double getGrandTotal() {
+        return grandTotal;
+    }
+
+    public void setGrandTotal(double grandTotal) {
+        this.grandTotal = grandTotal;
+    }
+
+    public void calculateGrandTotal() {
+        double total = 0;
+        for (BillItem item : items) {
+            total += item.getTotal();
+        }
+        this.grandTotal = total;
+    }
+
 // Getters, Setters, Constructors
 }

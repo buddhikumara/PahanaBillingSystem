@@ -6,6 +6,16 @@ public class BillItem {
     private int quantity;
     private double unitPrice;
     private double totalPrice;
+    private double total;
+
+    public double getTotal() {
+        return total;
+    }
+
+    public void setTotal(double total) {
+        this.total = total;
+    }
+
 
     // ✅ No-arg constructor (needed for servlet + setters)
     public BillItem() {

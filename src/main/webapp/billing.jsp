@@ -14,150 +14,183 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .card { border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .form-control, .form-select { border-radius: 6px; }
-        .highlight-box {
-            background: #e9ffe9; padding: 10px 20px;
-            border-radius: 10px; font-weight: bold; font-size: 1.2rem;
+        body {
+            background-color: #f1f4f9;
         }
-        @media print {
-            .no-print { display: none; }
-            body { background: white; }
+
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+
+        .table > thead {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+        }
+
+        .btn-rounded {
+            border-radius: 30px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        .highlight-box {
+            background-color: #fff6e6;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .table td, .table th {
+            vertical-align: middle;
         }
     </style>
 </head>
 <body>
 
+<% if (request.getAttribute("submitted") != null) { %>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    ✅ Bill submitted successfully! Total:
+    <strong>Rs. <%= request.getAttribute("grandTotal") %></strong>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+<% } %>
+
+
 <div class="container mt-5">
     <div class="card p-4">
-        <h3 class="text-primary mb-4"><i class="fa-solid fa-cart-shopping me-2"></i>Cashier Billing</h3>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="text-primary"><i class="fa-solid fa-cart-shopping me-2"></i>Cashier Billing</h3>
+            <button type="button" class="btn btn-success btn-rounded" onclick="addRow()">
+                <i class="fa-solid fa-plus me-1"></i> Add Item
+            </button>
+        </div>
 
-        <form id="billForm" action="billing" method="post" onsubmit="return validateForm()">
-            <div class="row mb-3">
-                <div class="col-md-8">
-
-                    <select class="form-select" id="itemSelect">
-                        <option value="">-- Select item --</option>
-                        <% if (items != null) {
-                            for (ItemDTO item : items) { %>
-                        <option
-                                value="<%= item.getItemId() %>"
-                                data-name="<%= item.getItemName() %>"
-                                data-description="<%= item.getDescription() %>"
-                                data-price="<%= item.getRetailPrice() %>">
-                            <%= item.getItemName() %>
-                        </option>
-                        <% }} %>
-                    </select>
-
-                </div>
-                <div class="col-md-2">
-                    <input type="number" id="qtyInput" class="form-control" placeholder="Qty" value="1" min="1">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-outline-success w-100" onclick="addSelectedItem()">
-                        <i class="fa fa-plus"></i> Add
-                    </button>
-                </div>
-            </div>
-
+        <form id="billForm" action="billing" method="post">
             <div class="table-responsive">
                 <table class="table table-hover align-middle text-center" id="billTable">
-                    <thead class="table-primary">
+                    <thead>
                     <tr>
-                        <th>Item</th>
+                        <th style="width: 18%">Item</th>
                         <th>Description</th>
-                        <th>Qty</th>
-                        <th>Price (Rs.)</th>
-                        <th>Total (Rs.)</th>
-                        <th class="no-print">Action</th>
+                        <th style="width: 12%">Qty</th>
+                        <th style="width: 15%">Price (Rs.)</th>
+                        <th style="width: 15%">Total (Rs.)</th>
+                        <th style="width: 10%">Remove</th>
                     </tr>
                     </thead>
-                    <tbody id="billBody"></tbody>
+                    <tbody id="billBody">
+                    <!-- JS will add rows here -->
+                    </tbody>
                 </table>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">Payment Method:</label>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="payment" value="Cash" checked>
-                    <label class="form-check-label">Cash</label>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" name="payment" value="Card">
-                    <label class="form-check-label">Card</label>
+            <div class="d-flex justify-content-end mt-4">
+                <div class="highlight-box">
+                    Total: Rs. <span id="grandTotal">0.00</span>
                 </div>
             </div>
 
-            <div class="text-end highlight-box mb-3">
-                Grand Total: Rs. <span id="grandTotal">0.00</span>
-            </div>
-
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary btn-lg no-print">
-                    <i class="fa fa-check"></i> Submit Bill (Ctrl + Enter)
-                </button>
-                <button type="button" class="btn btn-danger btn-lg no-print ms-2" onclick="deleteSelectedRows()">
-                    <i class="fa fa-trash"></i> Delete Selected
+            <div class="d-flex justify-content-end mt-3">
+                <button type="submit" class="btn btn-primary btn-rounded">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Submit Bill
                 </button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Hidden item list template -->
+<select class="form-select d-none" id="itemSelectTemplate">
+    <option value="">-- Select Item --</option>
+    <% if (items != null && !items.isEmpty()) {
+        for (ItemDTO item : items) { %>
+    <option value="<%= item.getItemId() %>"
+            data-name="<%= item.getItemName() %>"
+            data-description="<%= item.getDescription() %>"
+            data-price="<%= item.getRetailPrice() %>">
+        <%= item.getItemName() %>
+    </option>
+    <%  }
+    } else { %>
+    <option disabled>No items found</option>
+    <% } %>
+</select>
+
+
+
 <script>
-    function addSelectedItem() {
-        const select = document.getElementById('itemSelect');
-        const option = select.options[select.selectedIndex];
-        const qtyInput = document.getElementById('qtyInput');
+    function addRow() {
+        const tbody = document.getElementById("billBody");
+        const row = document.createElement("tr");
 
-        if (!option || !option.value || option.value === "") {
-            alert("Please select a valid item.");
-            return;
-        }
+        // Clone dropdown
+        const template = document.getElementById("itemSelectTemplate");
+        const select = template.cloneNode(true);
+        select.classList.remove("d-none");
+        select.removeAttribute("id");
+        select.setAttribute("name", "itemId");
+        select.classList.add("form-select");
+        select.setAttribute("onchange", "updateRow(this)");
 
-        const itemId = option.value;
-        const name = option.dataset.name;
-        const desc = option.dataset.description;
-        const price = parseFloat(option.dataset.price);
-        const qty = parseInt(qtyInput.value);
-
-        if (!itemId || !name || !desc || isNaN(price) || isNaN(qty) || qty <= 0) {
-            alert("Invalid item or quantity.");
-            return;
-        }
-
-        const total = qty * price;
-
-        const row = document.createElement('tr');
         row.innerHTML = `
-        <td><input type="hidden" name="itemId" value="${itemId}">${name}</td>
-        <td>${desc}</td>
-        <td>${qty}</td>
-        <td>${price.toFixed(2)}</td>
-        <td class="item-total">${total.toFixed(2)}</td>
-        <td class="no-print">
-            <input type="checkbox" class="form-check-input">
-        </td>
+        <td></td>
+        <td><input type="text" name="description" class="form-control" readonly></td>
+        <td><input type="number" name="quantity" class="form-control text-center" value="1" min="1" onchange="recalculate(this)"></td>
+        <td><input type="number" name="price" class="form-control text-end" readonly></td>
+        <td><input type="number" name="total" class="form-control text-end" readonly></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)"><i class="fa fa-trash"></i></button></td>
     `;
 
-        document.getElementById('billBody').appendChild(row);
-        select.selectedIndex = 0;
-        qtyInput.value = '1';
+        // Insert select into first <td>
+        row.children[0].appendChild(select);
+
+        tbody.appendChild(row);
+    }
+
+
+    function updateRow(select) {
+        const selected = select.options[select.selectedIndex];
+        const row = select.closest('tr');
+
+        row.querySelector('[name=description]').value = selected.getAttribute('data-description');
+        row.querySelector('[name=price]').value = selected.getAttribute('data-price');
+        row.querySelector('[name=quantity]').value = 1;
+
+        recalculate(row.querySelector('[name=quantity]'));
+    }
+
+    function recalculate(input) {
+        const row = input.closest('tr');
+        const qty = parseFloat(row.querySelector('[name=quantity]').value) || 0;
+        const price = parseFloat(row.querySelector('[name=price]').value) || 0;
+        const total = qty * price;
+
+        row.querySelector('[name=total]').value = total.toFixed(2);
         updateGrandTotal();
     }
 
     function updateGrandTotal() {
-        let total = 0;
-        document.querySelectorAll(".item-total").forEach(el => {
-            total += parseFloat(el.textContent.trim()) || 0;
+        const totals = document.querySelectorAll('[name=total]');
+        let sum = 0;
+
+        totals.forEach(t => {
+            sum += parseFloat(t.value) || 0;
         });
-        document.getElementById("grandTotal").innerText = total.toFixed(2);
+
+        document.getElementById('grandTotal').innerText = sum.toFixed(2);
+    }
+
+    function removeRow(btn) {
+        btn.closest('tr').remove();
+        updateGrandTotal();
     }
 </script>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -25,6 +25,12 @@
     </dependency>
 
 
+<!--    <dependency>-->
+<!--      <groupId>com.itextpdf</groupId>-->
+<!--      <artifactId>itext-core</artifactId>-->
+<!--      <version>8.0.5</version>-->
+<!--    </dependency>-->
+
     <!-- JSP (optional, only if you use JSP) -->
     <dependency>
       <groupId>javax.servlet.jsp</groupId>

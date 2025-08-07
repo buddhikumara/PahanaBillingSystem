@@ -19,6 +19,8 @@ public class BillingServlet extends HttpServlet {
 
     private final ItemService itemService = new ItemService();
     private final BillDAOImpl billDAO = new BillDAOImpl();
+    Bill bill = new Bill();
+
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -33,6 +35,17 @@ public class BillingServlet extends HttpServlet {
         String[] quantities = req.getParameterValues("quantity");
         String[] prices = req.getParameterValues("price");
         String[] totals = req.getParameterValues("total");
+
+//        String invoicePath = InvoicePDFGenerator.generateInvoice(bill);
+//        req.setAttribute("pdfPath", invoicePath);
+//        req.getRequestDispatcher("invoice-success.jsp").forward(req, resp);
+        req.setAttribute("submitted", true);
+        req.setAttribute("grandTotal", bill.getGrandTotal());
+        req.setAttribute("items", itemService.getAllItems()); // to reload item dropdown
+        req.getRequestDispatcher("billing.jsp").forward(req, resp);
+
+        bill.calculateGrandTotal();
+
 
         if (itemIds == null || itemIds.length == 0) {
             req.setAttribute("error", "No items selected.");
