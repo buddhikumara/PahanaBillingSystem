@@ -16,7 +16,8 @@ public class ItemService {
     }
 
     public List<ItemDTO> getAllItems() {
-        return itemDAO.getAllItems().stream()
+        List<Item> entityList = itemDAO.getAllItems();
+        return entityList.stream()
                 .map(ItemMapper::toDTO)
                 .collect(Collectors.toList());
     }

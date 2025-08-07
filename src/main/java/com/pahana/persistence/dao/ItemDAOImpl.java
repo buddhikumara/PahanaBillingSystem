@@ -32,7 +32,6 @@ public class ItemDAOImpl implements ItemDAO {
     public List<Item> getAllItems() {
         List<Item> list = new ArrayList<>();
         String sql = "SELECT * FROM items";
-
         try (Connection con = DBUtil.getConnection();
              Statement st = con.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -48,11 +47,13 @@ public class ItemDAOImpl implements ItemDAO {
                 ));
             }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return list;
     }
+
+
 
     @Override
     public boolean updateItem(Item item) {
