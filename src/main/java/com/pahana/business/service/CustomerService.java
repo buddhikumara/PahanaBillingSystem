@@ -2,40 +2,47 @@ package com.pahana.business.service;
 
 import com.pahana.business.dto.CustomerDTO;
 import com.pahana.business.mapper.CustomerMapper;
+// com.pahana.business.service.CustomerService
 import com.pahana.persistence.dao.CustomerDAO;
-import com.pahana.persistence.dao.CustomerDAOImpl;
+import com.pahana.persistence.dao.CustomerDAOImpl;   // <-- not .dao.impl
+
 import com.pahana.persistence.model.Customer;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class CustomerService {
+    private final CustomerDAO dao;
 
-    private final CustomerDAO customerDAO = new CustomerDAOImpl();
-
-    public void addCustomer(CustomerDTO dto) {
-        Customer customer = CustomerMapper.toEntity(dto);
-        customerDAO.save(customer);
+    public CustomerService(Connection conn) {
+        this.dao = new CustomerDAOImpl(conn); // correct impl & ctor
     }
 
-    public CustomerDTO getCustomer(String accountNumber) {
-        Customer customer = customerDAO.findByAccountNumber(accountNumber);
-        return customer != null ? CustomerMapper.toDTO(customer) : null;
+    public List<CustomerDTO> getAll() {
+        return dao.findAll().stream().map(CustomerMapper::toDTO).collect(Collectors.toList());
     }
 
-    public List<CustomerDTO> getAllCustomers() {
-        List<Customer> customerList = customerDAO.findAll();
-        return customerList.stream()
-                .map(CustomerMapper::toDTO)
-                .collect(Collectors.toList());
+    public CustomerDTO getById(String customerId) {
+        return CustomerMapper.toDTO(dao.findById(customerId));
     }
 
-    public void updateCustomer(CustomerDTO dto) {
-        Customer customer = CustomerMapper.toEntity(dto);
-        customerDAO.update(customer);
+    public boolean add(CustomerDTO dto) throws SQLException {
+        Customer entity = CustomerMapper.toEntity(dto);
+        return dao.insert(entity);
     }
 
-    public void deleteCustomer(String accountNumber) {
-        customerDAO.delete(accountNumber);
+    public boolean update(CustomerDTO dto) throws SQLException {
+        Customer entity = CustomerMapper.toEntity(dto);
+        return dao.update(entity);
+    }
+
+    public boolean delete(String customerId) throws SQLException {
+        return dao.delete(customerId);
+    }
+
+    public boolean exists(String customerId) {
+        return dao.existsById(customerId);
     }
 }

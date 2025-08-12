@@ -1,59 +1,29 @@
 package com.pahana.persistence.model;
 
 public class Customer {
-    private String accountNumber;
+    private String customerId;   // PK (varchar 20)
     private String name;
     private String address;
     private String phone;
-    private int unitsConsumed;
+    private String email;
+    private Integer units;
 
     public Customer() {}
-
-    public Customer(String accountNumber, String name, String address, String phone, int unitsConsumed) {
-        this.accountNumber = accountNumber;
-        this.name = name;
-        this.address = address;
-        this.phone = phone;
-        this.unitsConsumed = unitsConsumed;
+    public Customer(String customerId, String name, String address, String phone, String email, Integer units) {
+        this.customerId = customerId; this.name = name; this.address = address;
+        this.phone = phone; this.email = email; this.units = units;
     }
 
-    public String getAccountNumber() {
-        return accountNumber;
-    }
-
-    public void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public int getUnitsConsumed() {
-        return unitsConsumed;
-    }
-
-    public void setUnitsConsumed(int unitsConsumed) {
-        this.unitsConsumed = unitsConsumed;
-    }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public Integer getUnits() { return units; }
+    public void setUnits(Integer units) { this.units = units; }
 }

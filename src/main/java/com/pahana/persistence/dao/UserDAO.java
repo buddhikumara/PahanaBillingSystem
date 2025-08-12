@@ -1,11 +1,9 @@
 package com.pahana.persistence.dao;
 
-
-
+import com.pahana.persistence.model.User;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 
 public class UserDAO {
     private final Connection conn;
@@ -15,36 +13,38 @@ public class UserDAO {
     }
 
     public boolean validateUser(String username, String password) {
-        try {
-            System.out.println("DEBUG: Trying login -> " + username + " / " + password);
-
-            // 🔹 Print all users first
-            Statement debugStmt = conn.createStatement();
-            ResultSet debugRs = debugStmt.executeQuery("SELECT username, password FROM users");
-            System.out.println("=== USERS IN DB ===");
-            while (debugRs.next()) {
-                System.out.println("DB -> " + debugRs.getString("username") + " / " + debugRs.getString("password"));
+        String sql = "SELECT 1 FROM users WHERE username=? AND password=? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
             }
-            System.out.println("===================");
-
-            // 🔹 Validate
-            String sql = "SELECT * FROM users WHERE username=? AND password=?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, username);
-            stmt.setString(2, password);
-
-            ResultSet rs = stmt.executeQuery();
-            boolean exists = rs.next();
-
-            System.out.println("DEBUG: Login result -> " + exists);
-            return exists;
-
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
 
+    // NEW: return full user (id, username, role). fullName stays null for now.
+    public User findByCredentials(String username, String password) {
+        String sql = "SELECT id, username, role FROM users WHERE username=? AND password=? LIMIT 1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    User u = new User();
+                    u.setId(rs.getInt("id"));
+                    u.setUsername(rs.getString("username"));
+                    u.setRole(rs.getString("role"));
+                    // u.setFullName(null); // table doesn't have it yet
+                    return u;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }
-
-

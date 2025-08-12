@@ -5,12 +5,9 @@
   Time: 22:55
   To change this template use File | Settings | File Templates.
 --%>
-<%@ page import="javax.servlet.http.HttpSession" %>
 <%
-  HttpSession sessionLogout = request.getSession(false);
-  if (sessionLogout != null) {
-    sessionLogout.invalidate();
-  }
-  response.sendRedirect("login.jsp");
+  javax.servlet.http.HttpSession s = request.getSession(false);
+  if (s != null) s.invalidate();
+  response.sendRedirect(request.getContextPath() + "/login.jsp");
 %>
 

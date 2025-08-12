@@ -2,5 +2,17 @@
          version="4.0">
   <display-name>PahanaBillingSystem</display-name>
 
+
+  <!-- Logout -->
+  <servlet>
+    <servlet-name>LogoutServlet</servlet-name>
+    <servlet-class>com.pahana.presentation.servlet.LogoutServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>LogoutServlet</servlet-name>
+    <url-pattern>/logout</url-pattern>
+  </servlet-mapping>
+
+
   <!-- DO NOT manually declare CustomerServlet here -->
 </web-app>
