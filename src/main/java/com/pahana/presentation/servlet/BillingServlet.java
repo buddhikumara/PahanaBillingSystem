@@ -6,6 +6,7 @@ import com.pahana.business.service.ItemService;
 import com.pahana.persistence.dao.impl.BillDAOImpl;
 import com.pahana.persistence.model.Bill;
 import com.pahana.persistence.model.BillItem;
+import com.pahana.persistence.model.Item;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -24,7 +25,7 @@ public class BillingServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        List<ItemDTO> items = itemService.getAllItems();
+        List<Item> items = itemService.all(); // was getAllItems()
         req.setAttribute("items", items);
         req.getRequestDispatcher("billing.jsp").forward(req, resp);
     }
@@ -41,7 +42,7 @@ public class BillingServlet extends HttpServlet {
 //        req.getRequestDispatcher("invoice-success.jsp").forward(req, resp);
         req.setAttribute("submitted", true);
         req.setAttribute("grandTotal", bill.getGrandTotal());
-        req.setAttribute("items", itemService.getAllItems()); // to reload item dropdown
+        req.setAttribute("items", itemService.all()); // to reload item dropdown
         req.getRequestDispatcher("billing.jsp").forward(req, resp);
 
         bill.calculateGrandTotal();

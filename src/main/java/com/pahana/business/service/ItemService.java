@@ -1,32 +1,35 @@
 package com.pahana.business.service;
 
-import com.pahana.business.dto.ItemDTO;
-import com.pahana.business.mapper.ItemMapper;
+import com.pahana.persistence.dao.ItemDAO;
 import com.pahana.persistence.dao.ItemDAOImpl;
 import com.pahana.persistence.model.Item;
+import com.pahana.util.DBUtil;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ItemService {
-    private final ItemDAOImpl itemDAO = new ItemDAOImpl();
+    private final ItemDAO dao;
 
-    public boolean addItem(ItemDTO dto) {
-        return itemDAO.addItem(ItemMapper.toEntity(dto));
+    // ✅ Preferred DI-style constructor
+    public ItemService(Connection conn) {
+        this.dao = new ItemDAOImpl(conn);
     }
 
-    public List<ItemDTO> getAllItems() {
-        List<Item> entityList = itemDAO.getAllItems();
-        return entityList.stream()
-                .map(ItemMapper::toDTO)
-                .collect(Collectors.toList());
+    // ✅ Convenience no-arg constructor (for places that call new ItemService())
+    public ItemService() {
+        try {
+            this.dao = new ItemDAOImpl(DBUtil.getConnection());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get DB connection", e);
+        }
     }
 
-    public boolean updateItem(ItemDTO dto) {
-        return itemDAO.updateItem(ItemMapper.toEntity(dto));
-    }
-
-    public boolean deleteItem(int id) {
-        return itemDAO.deleteItem(id);
-    }
+    public List<Item> all()               { return dao.findAll(); }
+    public List<Item> search(String q)    { return dao.search(q); }
+    public Item getById(int id)           { return dao.findById(id); }
+    public boolean add(Item i) throws SQLException    { return dao.insert(i); }
+    public boolean update(Item i) throws SQLException { return dao.update(i); }
+    public boolean delete(int id) throws SQLException { return dao.delete(id); }
 }

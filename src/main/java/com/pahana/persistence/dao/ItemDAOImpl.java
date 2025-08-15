@@ -1,92 +1,99 @@
 package com.pahana.persistence.dao;
 
 import com.pahana.persistence.model.Item;
-import com.pahana.util.DBUtil;
-
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ItemDAOImpl implements ItemDAO {
+    private final Connection conn;
+    public ItemDAOImpl(Connection conn){ this.conn = conn; }
 
-    @Override
-    public boolean addItem(Item item) {
-        String sql = "INSERT INTO items (item_name, description, cost_price, retail_price, quantity) VALUES (?, ?, ?, ?, ?)";
-        try (Connection con = DBUtil.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setString(1, item.getItemName());
-            ps.setString(2, item.getDescription());
-            ps.setDouble(3, item.getCostPrice());
-            ps.setDouble(4, item.getRetailPrice());
-            ps.setInt(5, item.getQuantity());
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+    private Item map(ResultSet rs) throws SQLException {
+        return new Item(
+                rs.getInt("item_id"),
+                rs.getString("item_name"),
+                rs.getString("description"),
+                rs.getBigDecimal("cost_price"),
+                rs.getBigDecimal("retail_price"),
+                (Integer) rs.getObject("quantity")
+        );
     }
 
-    @Override
-    public List<Item> getAllItems() {
+    @Override public List<Item> findAll() {
         List<Item> list = new ArrayList<>();
-        String sql = "SELECT * FROM items";
-        try (Connection con = DBUtil.getConnection();
-             Statement st = con.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-
-            while (rs.next()) {
-                list.add(new Item(
-                        rs.getInt("item_id"),
-                        rs.getString("item_name"),
-                        rs.getString("description"),
-                        rs.getDouble("cost_price"),
-                        rs.getDouble("retail_price"),
-                        rs.getInt("quantity")
-                ));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
+                "FROM items ORDER BY item_id DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) list.add(map(rs));
+        } catch (Exception e) { e.printStackTrace(); }
         return list;
     }
 
-
-
-    @Override
-    public boolean updateItem(Item item) {
-        String sql = "UPDATE items SET item_name=?, description=?, cost_price=?, retail_price=?, quantity=? WHERE item_id=?";
-        try (Connection con = DBUtil.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setString(1, item.getItemName());
-            ps.setString(2, item.getDescription());
-            ps.setDouble(3, item.getCostPrice());
-            ps.setDouble(4, item.getRetailPrice());
-            ps.setInt(5, item.getQuantity());
-            ps.setInt(6, item.getItemId());
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+    @Override public List<Item> search(String q) {
+        List<Item> list = new ArrayList<>();
+        if (q == null) q = "";
+        q = "%" + q.trim() + "%";
+        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
+                "FROM items " +
+                "WHERE CAST(item_id AS CHAR) LIKE ? " +
+                "   OR item_name LIKE ? " +
+                "   OR description LIKE ? " +
+                "ORDER BY item_id DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, q); ps.setString(2, q); ps.setString(3, q);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(map(rs));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return list;
     }
 
-    @Override
-    public boolean deleteItem(int id) {
-        String sql = "DELETE FROM items WHERE item_id=?";
-        try (Connection con = DBUtil.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+    @Override public Item findById(int itemId) {
+        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
+                "FROM items WHERE item_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return map(rs);
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
+    }
 
-            ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+    @Override public boolean insert(Item i) throws SQLException {
+        String sql = "INSERT INTO items (item_name,description,cost_price,retail_price,quantity) " +
+                "VALUES (?,?,?,?,?)"; // no item_id: AUTO_INCREMENT
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, i.getItemName());
+            ps.setString(2, i.getDescription());
+            ps.setBigDecimal(3, i.getCostPrice());
+            ps.setBigDecimal(4, i.getRetailPrice());
+            if (i.getQuantity() == null) ps.setNull(5, Types.INTEGER); else ps.setInt(5, i.getQuantity());
+            return ps.executeUpdate() == 1;
         }
-        return false;
+    }
+
+    @Override public boolean update(Item i) throws SQLException {
+        String sql = "UPDATE items SET item_name=?, description=?, cost_price=?, retail_price=?, quantity=? " +
+                "WHERE item_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, i.getItemName());
+            ps.setString(2, i.getDescription());
+            ps.setBigDecimal(3, i.getCostPrice());
+            ps.setBigDecimal(4, i.getRetailPrice());
+            if (i.getQuantity() == null) ps.setNull(5, Types.INTEGER); else ps.setInt(5, i.getQuantity());
+            ps.setInt(6, i.getItemId());
+            return ps.executeUpdate() == 1;
+        }
+    }
+
+    @Override public boolean delete(int itemId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM items WHERE item_id=?")) {
+            ps.setInt(1, itemId);
+            return ps.executeUpdate() == 1;
+        }
     }
 }
