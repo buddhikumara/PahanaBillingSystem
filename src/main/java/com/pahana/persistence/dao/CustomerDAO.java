@@ -13,4 +13,6 @@ public interface CustomerDAO {
     boolean insert(Customer c) throws SQLException;
     boolean update(Customer c) throws SQLException;
     boolean delete(String customerId) throws SQLException;
+
+
 }

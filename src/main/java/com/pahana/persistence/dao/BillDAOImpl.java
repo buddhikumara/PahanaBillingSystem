@@ -1,4 +1,4 @@
-package com.pahana.persistence.dao.impl;
+package com.pahana.persistence.dao;
 
 import com.pahana.persistence.dao.BillDAO;
 import com.pahana.persistence.model.Bill;

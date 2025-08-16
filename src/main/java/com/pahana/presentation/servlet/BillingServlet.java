@@ -1,96 +1,128 @@
-// BillingServlet.java
 package com.pahana.presentation.servlet;
 
-import com.pahana.business.dto.ItemDTO;
-import com.pahana.business.service.ItemService;
-import com.pahana.persistence.dao.impl.BillDAOImpl;
-import com.pahana.persistence.model.Bill;
-import com.pahana.persistence.model.BillItem;
+import com.pahana.business.dto.BillDTO;
+import com.pahana.business.dto.BillItemDTO;
+import com.pahana.persistence.dao.BillingDAO;
+import com.pahana.persistence.dao.CustomerDAOImpl;
+import com.pahana.persistence.dao.ItemDAOImpl;
+import com.pahana.persistence.model.Customer;
 import com.pahana.persistence.model.Item;
+import com.pahana.util.DBUtil;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.sql.Connection;
 import java.util.List;
 
 @WebServlet("/billing")
 public class BillingServlet extends HttpServlet {
 
-    private final ItemService itemService = new ItemService();
-    private final BillDAOImpl billDAO = new BillDAOImpl();
-    Bill bill = new Bill();
-
-
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        List<Item> items = itemService.all(); // was getAllItems()
-        req.setAttribute("items", items);
-        req.getRequestDispatcher("billing.jsp").forward(req, resp);
+    private BillDTO cart(HttpServletRequest req){
+        BillDTO bill = (BillDTO) req.getSession().getAttribute("billCart");
+        if (bill == null) { bill = new BillDTO(); req.getSession().setAttribute("billCart", bill); }
+        return bill;
     }
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String[] itemIds = req.getParameterValues("itemId");
-        String[] quantities = req.getParameterValues("quantity");
-        String[] prices = req.getParameterValues("price");
-        String[] totals = req.getParameterValues("total");
-
-//        String invoicePath = InvoicePDFGenerator.generateInvoice(bill);
-//        req.setAttribute("pdfPath", invoicePath);
-//        req.getRequestDispatcher("invoice-success.jsp").forward(req, resp);
-        req.setAttribute("submitted", true);
-        req.setAttribute("grandTotal", bill.getGrandTotal());
-        req.setAttribute("items", itemService.all()); // to reload item dropdown
-        req.getRequestDispatcher("billing.jsp").forward(req, resp);
-
-        bill.calculateGrandTotal();
-
-
-        if (itemIds == null || itemIds.length == 0) {
-            req.setAttribute("error", "No items selected.");
-            doGet(req, resp);
-            return;
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        try (Connection c = DBUtil.getConnection()) {
+            // NOTE: pass the same Connection to DAO constructors
+            List<Customer> customers = new CustomerDAOImpl(c).findAll();
+            req.setAttribute("customers", customers);
+        } catch (Exception e) {
+            throw new ServletException(e);
         }
+        req.getRequestDispatcher("/WEB-INF/billing.jsp").forward(req, resp);
+    }
 
-        List<BillItem> billItems = new ArrayList<>();
-        double totalAmount = 0;
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+        String action = req.getParameter("action");
+        BillDTO bill = cart(req);
 
-        for (int i = 0; i < itemIds.length; i++) {
-            try {
-                int itemId = Integer.parseInt(itemIds[i]);
-                int qty = Integer.parseInt(quantities[i]);
-                double price = Double.parseDouble(prices[i]);
-                double total = Double.parseDouble(totals[i]);
+        try (Connection c = DBUtil.getConnection()) {
+            // pass connection to DAOs
+            ItemDAOImpl itemDAO = new ItemDAOImpl(c);
+            BillingDAO billingDAO = new BillingDAO(); // its methods accept Connection args
 
-                BillItem item = new BillItem();
-                item.setItemId(itemId);
-                item.setQuantity(qty);
-                item.setUnitPrice(price);
-                item.setTotalPrice(total);
+            switch (action) {
+                case "start": {
+                    bill.setCustomerId(req.getParameter("customerId"));
+                    bill.setCustomerName(req.getParameter("customerName"));
+                    bill.getItems().clear();
+                    resp.sendRedirect(req.getContextPath()+"/billing");
+                    return;
+                }
+                case "addItem": {
+                    String codeOrName = req.getParameter("codeOrName");
+                    int qty = Integer.parseInt(req.getParameter("qty"));
 
-                billItems.add(item);
-                totalAmount += total;
-            } catch (Exception e) {
-                e.printStackTrace();
-                req.setAttribute("error", "Invalid input in billing form.");
-                doGet(req, resp);
-                return;
+                    if (codeOrName != null) {
+                        codeOrName = codeOrName.trim();
+
+                        int dash = codeOrName.indexOf(" - ");
+                        if (dash > 0) codeOrName = codeOrName.substring(0, dash).trim();
+                    }
+                    Item item = itemDAO.findByIdOrName(codeOrName);
+                    if (item != null) {
+                        BillItemDTO bi = new BillItemDTO();
+                        bi.setItemId(item.getItemId());
+                        bi.setItemName(item.getItemName());
+                        bi.setUnitPrice(item.getRetailPrice().doubleValue());
+                        bi.setQty(qty);
+                        bi.setStockQty(item.getQuantity());  // for warnings
+                        bill.getItems().add(bi);
+
+                        if (item.getQuantity() <= 0) {
+                            req.getSession().setAttribute("stockWarning", "No stock: " + item.getItemName() + ". Billing allowed.");
+                        } else if (item.getQuantity() < qty) {
+                            req.getSession().setAttribute("stockWarning", "Only " + item.getQuantity() + " in stock for " + item.getItemName() + ". Billing allowed.");
+                        } else {
+                            req.getSession().removeAttribute("stockWarning");
+                        }
+                    } else {
+                        req.getSession().setAttribute("stockWarning", "Item not found for: " + codeOrName);
+                    }
+                    resp.sendRedirect(req.getContextPath()+"/billing");
+                    return;
+                }
+                case "removeItem": {
+                    int idx = Integer.parseInt(req.getParameter("index"));
+                    if (idx >= 0 && idx < bill.getItems().size()) bill.getItems().remove(idx);
+                    resp.sendRedirect(req.getContextPath()+"/billing");
+                    return;
+                }
+                case "finish": {
+                    bill.setPaymentMethod(req.getParameter("paymentMethod"));
+                    try { bill.setPaidAmount(Double.parseDouble(req.getParameter("paidAmount"))); } catch (Exception ignored) {}
+                    try { bill.setDiscount(Double.parseDouble(req.getParameter("discount"))); } catch (Exception ignored) {}
+
+                    c.setAutoCommit(false);
+                    try {
+                        int billId = billingDAO.insertBill(c, bill);
+                        billingDAO.insertBillItems(c, billId, bill.getItems());
+                        billingDAO.reduceStock(c, bill.getItems());
+                        c.commit();
+
+                        req.getSession().removeAttribute("billCart");
+                        String qs = String.format("?billId=%d&customerName=%s&paymentMethod=%s&paidAmount=%s&discount=%s",
+                                billId,
+                                java.net.URLEncoder.encode(String.valueOf(bill.getCustomerName()), "UTF-8"),
+                                java.net.URLEncoder.encode(String.valueOf(bill.getPaymentMethod()), "UTF-8"),
+                                java.net.URLEncoder.encode(String.valueOf(bill.getPaidAmount()), "UTF-8"),
+                                java.net.URLEncoder.encode(String.valueOf(bill.getDiscount()), "UTF-8"));
+                        resp.sendRedirect(req.getContextPath()+"/invoice.pdf"+qs);
+                    } catch (Exception ex) {
+                        c.rollback();
+                        throw ex;
+                    } finally {
+                        c.setAutoCommit(true);
+                    }
+                    return;
+                }
             }
+        } catch (Exception e) {
+            throw new ServletException(e);
         }
-
-        Bill bill = new Bill();
-        bill.setItems(billItems);
-        bill.setTotalAmount(totalAmount);
-
-        boolean saved = billDAO.saveBill(bill);
-        if (saved) {
-            req.setAttribute("success", "Bill submitted successfully!");
-        } else {
-            req.setAttribute("error", "Failed to save the bill.");
-        }
-
-        doGet(req, resp);
     }
 }

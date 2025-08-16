@@ -56,6 +56,8 @@ public class CustomerDAOImpl implements CustomerDAO {
         return list;
     }
 
+
+
     @Override public Customer findById(String customerId) {
         String sql = "SELECT customerId,name,address,phone,email,units FROM customers WHERE customerId=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -116,4 +118,6 @@ public class CustomerDAOImpl implements CustomerDAO {
             return ps.executeUpdate() == 1;
         }
     }
+
+
 }

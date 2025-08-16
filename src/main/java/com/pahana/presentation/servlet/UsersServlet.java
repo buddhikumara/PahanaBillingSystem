@@ -2,169 +2,172 @@ package com.pahana.presentation.servlet;
 
 import com.pahana.business.service.UserService;
 import com.pahana.persistence.model.User;
-import com.pahana.util.DBUtil;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
+import javax.servlet.ServletException;
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 
 @WebServlet("/users")
 public class UsersServlet extends HttpServlet {
-    private UserService userService;
+
+    private final UserService svc = new UserService(); // stateless service
 
     @Override
-    public void init() throws ServletException {
-        try {
-            Connection conn = DBUtil.getConnection();
-            userService = new UserService(conn);
-        } catch (Exception e) { throw new ServletException(e); }
-    }
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setCharacterEncoding("UTF-8");
 
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-        User auth = (User) req.getSession().getAttribute("authUser");
-        if (auth == null) { resp.sendRedirect(req.getContextPath() + "/login.jsp"); return; }
-        if (!"ADMIN".equals(auth.getRole())) { resp.sendError(403); return; }
-
-        String searchFlag = req.getParameter("search");
-        List<User> list = java.util.Collections.emptyList();
-        boolean hasSearched = false;
-
-        if (searchFlag != null) {
-            hasSearched = true;
-            String q = param(req, "q");
-            list = (q.isEmpty()) ? userService.findAll() : userService.search(q);
-            req.setAttribute("q", q);
-        } else {
-            req.setAttribute("q", "");
+        // Ensure authUser for navbar (mirror 'user' to 'authUser' if needed)
+        HttpSession session = req.getSession();
+        if (session.getAttribute("authUser") == null && session.getAttribute("user") != null) {
+            session.setAttribute("authUser", session.getAttribute("user"));
         }
 
+        // Move flash messages session -> request (so JSP toasts work)
+        moveFlash(session, req);
+
+        String q = trim(req.getParameter("q"));
+        boolean hasSearched = "1".equals(req.getParameter("search")) || (q != null && !q.isEmpty());
+
+        req.setAttribute("q", q == null ? "" : q);
         req.setAttribute("hasSearched", hasSearched);
-        req.setAttribute("users", list);
+
+        if (hasSearched) {
+            List<User> users = (q == null || q.isEmpty()) ? svc.findAll() : svc.search(q);
+            req.setAttribute("users", users);
+        } else {
+            req.setAttribute("users", Collections.emptyList());
+        }
+
         req.getRequestDispatcher("/users.jsp").forward(req, resp);
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-        User auth = (User) req.getSession().getAttribute("authUser");
-        if (auth == null) { resp.sendError(401); return; }
-        if (!"ADMIN".equals(auth.getRole())) { resp.sendError(403); return; }
-
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        req.setCharacterEncoding("UTF-8");
         String action = req.getParameter("action");
+        HttpSession session = req.getSession();
 
         try {
-            if ("add".equals(action)) {
-                List<String> errs = validate(req, false);
+            if ("add".equalsIgnoreCase(action)) {
+                // form fields
+                String username = trim(req.getParameter("username"));
+                String role     = trim(req.getParameter("role"));
+                String password = req.getParameter("password");
+                String confirm  = req.getParameter("confirm");
+
+                // validate
+                List<String> errs = new ArrayList<>();
+                if (isBlank(username)) errs.add("Username is required.");
+                if (isBlank(role))     errs.add("Role is required.");
+                if (isBlank(password)) errs.add("Password is required.");
+                if (!isBlank(password) && password.length() < 6) errs.add("Password must be at least 6 characters.");
+                if (!Objects.equals(password, confirm)) errs.add("Password and confirmation do not match.");
+                if (!isBlank(username) && svc.existsByUsername(username)) errs.add("Username already exists.");
+
                 if (!errs.isEmpty()) {
-                    req.setAttribute("formErrors", errs);
+                    // reopen Add modal with errors and previously entered values
                     req.setAttribute("openModal", "add");
-                    req.setAttribute("form", bind(req, false));
-                    req.setAttribute("hasSearched", true);
-                    req.setAttribute("q", "");
-                    req.setAttribute("users", userService.findAll());
-                    req.getRequestDispatcher("/users.jsp").forward(req, resp);
-                    return;
-                }
-                userService.insert(bind(req, false));
-                req.getSession().setAttribute("flashSuccess", "User added successfully.");
-                resp.sendRedirect(req.getContextPath() + "/users?search=1&q=");
-                return;
-
-            } else if ("update".equals(action)) {
-                List<String> errs = validate(req, true);
-                if (!errs.isEmpty()) {
+                    Map<String,Object> form = new HashMap<>();
+                    form.put("username", username);
+                    form.put("role", role == null ? "USER" : role);
+                    req.setAttribute("form", form);
                     req.setAttribute("formErrors", errs);
-                    req.setAttribute("openModal", "edit");
-                    req.setAttribute("form", bind(req, true));
-                    req.setAttribute("hasSearched", true);
+
+                    // keep the screen state consistent
+                    req.setAttribute("hasSearched", false);
                     req.setAttribute("q", "");
-                    req.setAttribute("users", userService.findAll());
+                    req.setAttribute("users", Collections.emptyList());
                     req.getRequestDispatcher("/users.jsp").forward(req, resp);
                     return;
                 }
-                userService.update(bind(req, true));
-                req.getSession().setAttribute("flashSuccess", "User updated successfully.");
-                resp.sendRedirect(req.getContextPath() + "/users?search=1&q=");
-                return;
 
-            } else if ("delete".equals(action)) {
-                String id = param(req, "id");
-                if (id.isEmpty()) req.getSession().setAttribute("flashError","Missing user id.");
-                else {
-                    try {
-                        userService.delete(Integer.parseInt(id));
-                        req.getSession().setAttribute("flashSuccess", "User deleted.");
-                    } catch (NumberFormatException ex) {
-                        req.getSession().setAttribute("flashError","Invalid user id.");
-                    }
+                User u = new User();
+                u.setUsername(username);
+                u.setRole(role);
+                u.setPassword(password); // (hash later if needed)
+                svc.insert(u);
+
+                session.setAttribute("flashSuccess", "User created (ID: " + u.getId() + ").");
+                resp.sendRedirect(req.getContextPath() + "/users?search=1");
+                return;
+            }
+
+            if ("update".equalsIgnoreCase(action)) {
+                Integer id = parseInt(req.getParameter("id"));
+                String username = trim(req.getParameter("username"));
+                String role     = trim(req.getParameter("role"));
+                String password = req.getParameter("password");
+                String confirm  = req.getParameter("confirm");
+
+                List<String> errs = new ArrayList<>();
+                if (id == null) errs.add("Missing user ID.");
+                if (isBlank(username)) errs.add("Username is required.");
+                if (!isBlank(password) && password.length() < 6) errs.add("New password must be at least 6 characters.");
+                if (!Objects.equals(password, confirm)) errs.add("New password and confirmation do not match.");
+
+                if (!errs.isEmpty()) {
+                    req.setAttribute("openModal", "edit");
+                    Map<String,Object> form = new HashMap<>();
+                    form.put("id", id);
+                    form.put("username", username);
+                    form.put("role", role);
+                    req.setAttribute("form", form);
+                    req.setAttribute("formErrors", errs);
+
+                    req.setAttribute("hasSearched", true);
+                    req.setAttribute("q", "");
+                    req.setAttribute("users", svc.findAll());
+                    req.getRequestDispatcher("/WEB-INF/users.jsp").forward(req, resp);
+                    return;
                 }
-                resp.sendRedirect(req.getContextPath() + "/users?search=1&q=");
+
+                // If password left blank -> keep existing (DAO handles NULL = keep)
+                User u = new User();
+                u.setId(id);
+                u.setUsername(username);
+                u.setRole(role);
+                if (!isBlank(password)) u.setPassword(password); else u.setPassword(null);
+
+                svc.update(u);
+                session.setAttribute("flashSuccess", "User updated (ID: " + id + ").");
+                resp.sendRedirect(req.getContextPath() + "/users?search=1");
                 return;
             }
 
-            resp.sendError(400, "Unknown action");
-        } catch (SQLException e) {
-            req.getSession().setAttribute("flashError","Database error: " + e.getMessage());
-            resp.sendRedirect(req.getContextPath() + "/users?search=1&q=");
-        }
-    }
-
-    // ---------- helpers ----------
-    private static String param(HttpServletRequest req, String name) {
-        String v = req.getParameter(name);
-        return v == null ? "" : v.trim();
-    }
-
-    private User bind(HttpServletRequest req, boolean forUpdate) {
-        User u = new User();
-        if (forUpdate) {
-            String id = param(req, "id");
-            if (!id.isEmpty()) try { u.setId(Integer.parseInt(id)); } catch (NumberFormatException ignored) {}
-        }
-        u.setUsername(param(req, "username"));
-        String pwd = param(req, "password");
-        u.setPassword(pwd); // NOTE: plain text unless you add hashing consistently
-        u.setRole(param(req, "role"));
-        return u;
-    }
-
-    private List<String> validate(HttpServletRequest req, boolean forUpdate) {
-        List<String> errs = new ArrayList<>();
-        String id = param(req, "id");
-        String username = param(req, "username");
-        String role = param(req, "role");
-        String pwd = param(req, "password");
-        String confirm = param(req, "confirm");
-
-        if (forUpdate) {
-            if (id.isEmpty()) errs.add("Missing user id.");
-            else try { Integer.parseInt(id); } catch (NumberFormatException e) { errs.add("Invalid user id."); }
-        }
-
-        if (username.isEmpty()) errs.add("Username is required.");
-        if (username.length() > 50) errs.add("Username must be ≤ 50 characters.");
-
-        if (!( "ADMIN".equals(role) || "USER".equals(role) || "CASHIER".equals(role) )) {
-            errs.add("Role must be ADMIN, USER, or CASHIER.");
-        }
-
-        if (!forUpdate) {
-            if (pwd.isEmpty()) errs.add("Password is required.");
-            else if (pwd.length() < 6) errs.add("Password must be at least 6 characters.");
-            if (!pwd.equals(confirm)) errs.add("Password confirmation does not match.");
-            if (errs.isEmpty() && userService.existsByUsername(username)) errs.add("Username already exists.");
-        } else {
-            if (!pwd.isEmpty()) {
-                if (pwd.length() < 6) errs.add("Password must be at least 6 characters.");
-                if (!pwd.equals(confirm)) errs.add("Password confirmation does not match.");
+            if ("delete".equalsIgnoreCase(action)) {
+                Integer id = parseInt(req.getParameter("id"));
+                if (id == null) {
+                    session.setAttribute("flashError", "Missing user ID.");
+                } else {
+                    svc.delete(id);
+                    session.setAttribute("flashSuccess", "User deleted (ID: " + id + ").");
+                }
+                resp.sendRedirect(req.getContextPath() + "/users?search=1");
+                return;
             }
+
+            session.setAttribute("flashError", "Unknown action.");
+            resp.sendRedirect(req.getContextPath() + "/users");
+        } catch (SQLException e) {
+            session.setAttribute("flashError", "DB error: " + safe(e.getMessage()));
+            resp.sendRedirect(req.getContextPath() + "/users?search=1");
         }
-        return errs;
     }
+
+    /* ================= helpers ================= */
+
+    private static void moveFlash(HttpSession session, HttpServletRequest req) {
+        Object ok = session.getAttribute("flashSuccess");
+        Object er = session.getAttribute("flashError");
+        if (ok != null) { req.setAttribute("flashSuccess", ok); session.removeAttribute("flashSuccess"); }
+        if (er != null) { req.setAttribute("flashError", er); session.removeAttribute("flashError"); }
+    }
+
+    private static String trim(String s) { return s == null ? null : s.trim(); }
+    private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+    private static Integer parseInt(String s) { try { return Integer.valueOf(s); } catch (Exception e) { return null; } }
+    private static String safe(String s) { return s == null ? "" : s.replace('\n',' ').replace('\r',' '); }
 }

@@ -11,14 +11,14 @@ public class ItemDAOImpl implements ItemDAO {
     public ItemDAOImpl(Connection conn){ this.conn = conn; }
 
     private Item map(ResultSet rs) throws SQLException {
-        return new Item(
-                rs.getInt("item_id"),
-                rs.getString("item_name"),
-                rs.getString("description"),
-                rs.getBigDecimal("cost_price"),
-                rs.getBigDecimal("retail_price"),
-                (Integer) rs.getObject("quantity")
-        );
+        Item i = new Item();
+        i.setItemId(rs.getInt("item_id"));
+        i.setItemName(rs.getString("item_name"));
+        // If your model uses BigDecimal:
+        try { i.setRetailPrice(rs.getBigDecimal("retail_price")); } catch (SQLException ignore) {}
+        // If your model uses double instead, do: i.setRetailPrice(rs.getDouble("retail_price"));
+        i.setQuantity(rs.getInt("quantity"));
+        return i;
     }
 
     @Override public List<Item> findAll() {
@@ -63,6 +63,56 @@ public class ItemDAOImpl implements ItemDAO {
         return null;
     }
 
+    public Item findByIdOrName(String codeOrName) {
+        if (codeOrName == null || codeOrName.isEmpty()) return null;
+
+        String q = codeOrName.trim();
+
+        // 1) Try numeric ID first (also handles values like "2", or "2-xxx" if servlet didn't strip)
+        try {
+            // read leading digits only
+            String digits = q.replaceFirst("^(\\d+).*$", "$1");
+            if (!digits.isEmpty()) {
+                int id = Integer.parseInt(digits);
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_id=?")) {
+                    ps.setInt(1, id);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return map(rs);
+                    }
+                }
+            }
+        } catch (Exception ignore) {}
+
+        // 2) Exact name (case-insensitive)
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE LOWER(item_name)=LOWER(?) LIMIT 1")) {
+            ps.setString(1, q);
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+
+        // 3) Prefix match
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_name LIKE ? ORDER BY item_name LIMIT 1")) {
+            ps.setString(1, q + "%");
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+
+        // 4) Contains match
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_name LIKE ? ORDER BY item_name LIMIT 1")) {
+            ps.setString(1, "%" + q + "%");
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+
+        return null;
+    }
+
+    @Override
+    public boolean existsById(int itemId) {
+        return false;
+    }
+
     @Override public boolean insert(Item i) throws SQLException {
         String sql = "INSERT INTO items (item_name,description,cost_price,retail_price,quantity) " +
                 "VALUES (?,?,?,?,?)"; // no item_id: AUTO_INCREMENT
@@ -95,5 +145,15 @@ public class ItemDAOImpl implements ItemDAO {
             ps.setInt(1, itemId);
             return ps.executeUpdate() == 1;
         }
+    }
+
+    @Override
+    public int getStock(int itemId) {
+        return 0;
+    }
+
+    @Override
+    public boolean reduceStock(int itemId, int qty) throws SQLException {
+        return false;
     }
 }

@@ -1,6 +1,6 @@
 package com.pahana.business.service;
 
-import com.pahana.persistence.dao.UserDAO;
+import com.pahana.persistence.dao.UserDAOImpl;
 import com.pahana.persistence.model.User;
 import com.pahana.util.DBUtil;
 
@@ -9,42 +9,117 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class UserService {
-    private final UserDAO userDAO;
 
-    // Preferred: pass a JDBC connection from your servlet init()
-    public UserService(Connection conn) {
-        this.userDAO = new UserDAO(conn);
-    }
+
+
     public User loginAndGetUser(String username, String password) {
-        return userDAO.findByCredentials(username, password);
-    }
-    // Convenience: if some code calls new UserService() with no args
-    public UserService() {
+        Connection conn = null;
         try {
-            Connection conn = DBUtil.getConnection();
-            this.userDAO = new UserDAO(conn);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to obtain DB connection", e);
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.findByCredentials(username, password);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
         }
     }
 
-    /* ===== Auth ===== */
     public boolean login(String username, String password) {
-        return userDAO.validateUser(username, password);
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.validateUser(username, password);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
     }
 
-    /* ===== Management (Admin) ===== */
-    public List<User> findAll() { return userDAO.findAll(); }
+    public List<User> findAll() {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.findAll();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public List<User> search(String q) { return userDAO.search(q); }
+    public List<User> search(String q) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.search(q);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public boolean existsByUsername(String username) { return userDAO.existsByUsername(username); }
+    public boolean existsByUsername(String username) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.existsByUsername(username);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public boolean insert(User u) throws SQLException { return userDAO.insert(u); }
+    public boolean insert(User u) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.insert(u);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public boolean update(User u) throws SQLException { return userDAO.update(u); }
+    public boolean update(User u) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.update(u);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public boolean delete(int id) throws SQLException { return userDAO.delete(id); }
+    public boolean delete(int id) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.delete(id);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 
-    public User findById(int id) { return userDAO.findById(id); }
+    public User findById(int id) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            UserDAOImpl dao = new UserDAOImpl(conn);
+            return dao.findById(id);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try { if (conn != null) conn.close(); } catch (Exception ignore) {}
+        }
+    }
 }

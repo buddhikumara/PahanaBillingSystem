@@ -18,7 +18,7 @@ public class LoginServlet extends HttpServlet {
     public void init() throws ServletException {
         try {
             Connection conn = DBUtil.getConnection();
-            userService = new UserService(conn);
+            userService = new UserService();
         } catch (Exception e) {
             e.printStackTrace();
             throw new ServletException("Database connection failed", e);
