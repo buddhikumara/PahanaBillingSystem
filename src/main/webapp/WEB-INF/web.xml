@@ -13,6 +13,11 @@
     <url-pattern>/logout</url-pattern>
   </servlet-mapping>
 
-
+  <welcome-file-list>
+    <welcome-file>login</welcome-file>
+    <!-- maps to /login servlet -->
+    <!-- OR if you want the JSP file itself: -->
+    <!-- <welcome-file>login.jsp</welcome-file> -->
+  </welcome-file-list>
   <!-- DO NOT manually declare CustomerServlet here -->
 </web-app>

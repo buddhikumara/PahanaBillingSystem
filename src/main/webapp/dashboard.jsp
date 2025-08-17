@@ -27,6 +27,18 @@
       &nbsp;|&nbsp; <a class="link-light" href="${pageContext.request.contextPath}/logout">Logout</a>
     </div>
   </div>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Dashboard</h3>
+    <div class="d-flex gap-2">
+      <a href="${pageContext.request.contextPath}/help" class="btn btn-outline-info">
+        Help
+      </a>
+      <a href="${pageContext.request.contextPath}/logout" class="btn btn-danger">
+        Exit
+      </a>
+    </div>
+  </div>
+
 </nav>
 
 <div class="container py-4">
@@ -45,6 +57,9 @@
         </a>
       </div>
     </c:if>
+
+
+
 
     <!-- ADMIN & USER: Customers -->
     <c:if test='<%= "ADMIN".equals(role) || "USER".equals(role) %>'>

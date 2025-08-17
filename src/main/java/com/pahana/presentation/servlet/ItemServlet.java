@@ -34,7 +34,7 @@ public class ItemServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         User u = (User) req.getSession().getAttribute("authUser");
-        if (u == null) { resp.sendRedirect(req.getContextPath() + "/login.jsp"); return; }
+        if (u == null) { resp.sendRedirect(req.getContextPath() + "/login"); return; }
         if ("CASHIER".equals(u.getRole())) { resp.sendError(403); return; }
 
         String searchFlag = req.getParameter("search");
