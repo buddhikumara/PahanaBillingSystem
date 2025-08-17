@@ -14,7 +14,10 @@ public class BillDTO {
     private String paymentMethod = "CASH";  // CASH/CARD (UI + PDF only)
     private double paidAmount;
     private double discount;
+    private String paymentType;
 
+    public String getPaymentType() { return paymentType; }
+    public void setPaymentType(String paymentType) { this.paymentType = paymentType; }
     public double getSubTotal(){ return items.stream().mapToDouble(BillItemDTO::getTotal).sum(); }
     public double getGrandTotal(){ return Math.max(0, getSubTotal() - discount); }
     public double getBalance(){ return paidAmount - getGrandTotal(); }

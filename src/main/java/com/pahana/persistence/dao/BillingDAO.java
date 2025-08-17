@@ -13,9 +13,11 @@ public class BillingDAO {
     /* -------- helpers -------- */
     private static boolean hasColumnIgnoreCase(Connection c, String table, String col) throws SQLException {
         DatabaseMetaData md = c.getMetaData();
-        try (ResultSet rs = md.getColumns(null, null, table, null)) {
+        String catalog = c.getCatalog(); // helps with MySQL schemas
+        try (ResultSet rs = md.getColumns(catalog, null, table, null)) {
             while (rs.next()) {
-                if (col.equalsIgnoreCase(rs.getString("COLUMN_NAME"))) return true;
+                String name = rs.getString("COLUMN_NAME");
+                if (name != null && name.equalsIgnoreCase(col)) return true;
             }
         }
         return false;
@@ -24,7 +26,7 @@ public class BillingDAO {
     /* -------- bill header -------- */
     public int insertBill(Connection c, BillDTO bill) throws SQLException {
         boolean hasCustomer = hasColumnIgnoreCase(c, "bills", "customer_id") || hasColumnIgnoreCase(c, "bills", "customerId");
-        boolean hasPayment  = hasColumnIgnoreCase(c, "bills", "payment_method");
+        boolean hasPayment  = hasColumnIgnoreCase(c, "bills", "payment_type");   // changed
         boolean hasPaid     = hasColumnIgnoreCase(c, "bills", "paid_amount");
         boolean hasDiscount = hasColumnIgnoreCase(c, "bills", "discount");
 
@@ -32,7 +34,7 @@ public class BillingDAO {
         StringBuilder vals = new StringBuilder("?,NOW()");
 
         if (hasCustomer) { cols.append(",customer_id");   vals.append(",?"); }
-        if (hasPayment)  { cols.append(",payment_method");vals.append(",?"); }
+        if (hasPayment)  { cols.append(",payment_type");  vals.append(",?"); } // changed
         if (hasPaid)     { cols.append(",paid_amount");   vals.append(",?"); }
         if (hasDiscount) { cols.append(",discount");      vals.append(",?"); }
 
@@ -41,7 +43,7 @@ public class BillingDAO {
             int i = 1;
             ps.setBigDecimal(i++, BigDecimal.valueOf(bill.getGrandTotal()));
             if (hasCustomer) ps.setString(i++, bill.getCustomerId());
-            if (hasPayment)  ps.setString(i++, bill.getPaymentMethod());
+            if (hasPayment)  ps.setString(i++, bill.getPaymentType()); // changed
             if (hasPaid)     ps.setBigDecimal(i++, BigDecimal.valueOf(bill.getPaidAmount()));
             if (hasDiscount) ps.setBigDecimal(i++, BigDecimal.valueOf(bill.getDiscount()));
 
