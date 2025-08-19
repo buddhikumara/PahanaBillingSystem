@@ -3,12 +3,12 @@ package com.pahana.persistence.model;
 import java.math.BigDecimal;
 
 public class Item {
-    private Integer itemId;         // AUTO_INCREMENT PK
-    private String itemName;        // required
-    private String description;     // optional
-    private BigDecimal costPrice;   // required >= 0
-    private BigDecimal retailPrice; // required >= costPrice
-    private Integer quantity;       // >= 0 (nullable)
+    private Integer itemId;
+    private String itemName;
+    private String description;
+    private BigDecimal costPrice;
+    private BigDecimal retailPrice;
+    private Integer quantity;
 
     public Item() {}
 
@@ -30,4 +30,7 @@ public class Item {
     public void setRetailPrice(BigDecimal retailPrice) { this.retailPrice = retailPrice; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+
+    public void setActive(int active) {
+    }
 }

@@ -17,11 +17,10 @@ public class BillItem {
     }
 
 
-    // ✅ No-arg constructor (needed for servlet + setters)
     public BillItem() {
     }
 
-    // ✅ All-arg constructor (optional use)
+
     public BillItem(int billItemId, int itemId, int quantity, double unitPrice, double totalPrice) {
         this.billItemId = billItemId;
         this.itemId = itemId;

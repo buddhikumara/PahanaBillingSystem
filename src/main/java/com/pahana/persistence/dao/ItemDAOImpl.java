@@ -1,6 +1,7 @@
 package com.pahana.persistence.dao;
 
 import com.pahana.persistence.model.Item;
+
 import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,21 +11,34 @@ public class ItemDAOImpl implements ItemDAO {
     private final Connection conn;
     public ItemDAOImpl(Connection conn){ this.conn = conn; }
 
+    /* -------- Mapping -------- */
     private Item map(ResultSet rs) throws SQLException {
         Item i = new Item();
         i.setItemId(rs.getInt("item_id"));
         i.setItemName(rs.getString("item_name"));
-        // If your model uses BigDecimal:
-        try { i.setRetailPrice(rs.getBigDecimal("retail_price")); } catch (SQLException ignore) {}
-        // If your model uses double instead, do: i.setRetailPrice(rs.getDouble("retail_price"));
-        i.setQuantity(rs.getInt("quantity"));
+        i.setDescription(rs.getString("description"));
+        try {
+            BigDecimal cost = rs.getBigDecimal("cost_price");
+            BigDecimal retail = rs.getBigDecimal("retail_price");
+            i.setCostPrice(cost);
+            i.setRetailPrice(retail);
+        } catch (SQLException ignore) { /* columns always present */ }
+        i.setQuantity((Integer) rs.getObject("quantity")); // null-safe
+        i.setActive(rs.getInt("active"));                  // 1/0
         return i;
     }
 
-    @Override public List<Item> findAll() {
+    /* ========= READ ========= */
+
+    /** Active items only (default listing). */
+    @Override
+    public List<Item> findAll() {
         List<Item> list = new ArrayList<>();
-        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
-                "FROM items ORDER BY item_id DESC";
+        String sql =
+                "SELECT item_id,item_name,description,cost_price,retail_price,quantity,active " +
+                        "FROM items " +
+                        "WHERE active=1 " +
+                        "ORDER BY item_id DESC";
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) list.add(map(rs));
@@ -32,16 +46,22 @@ public class ItemDAOImpl implements ItemDAO {
         return list;
     }
 
-    @Override public List<Item> search(String q) {
+    /** Search active items only. */
+    @Override
+    public List<Item> search(String q) {
         List<Item> list = new ArrayList<>();
         if (q == null) q = "";
         q = "%" + q.trim() + "%";
-        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
-                "FROM items " +
-                "WHERE CAST(item_id AS CHAR) LIKE ? " +
-                "   OR item_name LIKE ? " +
-                "   OR description LIKE ? " +
-                "ORDER BY item_id DESC";
+
+        String sql = """
+            SELECT item_id,item_name,description,cost_price,retail_price,quantity,active
+            FROM items
+            WHERE active=1
+              AND (CAST(item_id AS CHAR) LIKE ?
+                   OR item_name LIKE ?
+                   OR description LIKE ?)
+            ORDER BY item_id DESC
+            """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, q); ps.setString(2, q); ps.setString(3, q);
             try (ResultSet rs = ps.executeQuery()) {
@@ -51,9 +71,30 @@ public class ItemDAOImpl implements ItemDAO {
         return list;
     }
 
-    @Override public Item findById(int itemId) {
-        String sql = "SELECT item_id,item_name,description,cost_price,retail_price,quantity " +
-                "FROM items WHERE item_id=?";
+    /** Find ONE active item by id. */
+    @Override
+    public Item findById(int itemId) {
+        String sql = """
+            SELECT item_id,item_name,description,cost_price,retail_price,quantity,active
+            FROM items
+            WHERE item_id=? AND active=1
+            """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return map(rs);
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
+    }
+
+    /* Optional helper if you need to fetch archived too */
+    public Item findByIdIncludingArchived(int itemId) {
+        String sql = """
+            SELECT item_id,item_name,description,cost_price,retail_price,quantity,active
+            FROM items
+            WHERE item_id=?
+            """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, itemId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -65,42 +106,42 @@ public class ItemDAOImpl implements ItemDAO {
 
     public Item findByIdOrName(String codeOrName) {
         if (codeOrName == null || codeOrName.isEmpty()) return null;
-
         String q = codeOrName.trim();
 
-        // 1) Try numeric ID first (also handles values like "2", or "2-xxx" if servlet didn't strip)
+        // 1) Try numeric id
         try {
-            // read leading digits only
             String digits = q.replaceFirst("^(\\d+).*$", "$1");
             if (!digits.isEmpty()) {
                 int id = Integer.parseInt(digits);
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_id=?")) {
+                        "SELECT item_id,item_name,description,cost_price,retail_price,quantity,active " +
+                                "FROM items WHERE item_id=? AND active=1")) {
                     ps.setInt(1, id);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) return map(rs);
-                    }
+                    try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
                 }
             }
         } catch (Exception ignore) {}
 
-        // 2) Exact name (case-insensitive)
+        // 2) Exact name (case-insensitive), active only
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE LOWER(item_name)=LOWER(?) LIMIT 1")) {
+                "SELECT item_id,item_name,description,cost_price,retail_price,quantity,active " +
+                        "FROM items WHERE active=1 AND LOWER(item_name)=LOWER(?) LIMIT 1")) {
             ps.setString(1, q);
             try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
         } catch (SQLException e) { throw new RuntimeException(e); }
 
         // 3) Prefix match
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_name LIKE ? ORDER BY item_name LIMIT 1")) {
+                "SELECT item_id,item_name,description,cost_price,retail_price,quantity,active " +
+                        "FROM items WHERE active=1 AND item_name LIKE ? ORDER BY item_name LIMIT 1")) {
             ps.setString(1, q + "%");
             try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
         } catch (SQLException e) { throw new RuntimeException(e); }
 
         // 4) Contains match
         try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT item_id,item_name,retail_price,quantity FROM items WHERE item_name LIKE ? ORDER BY item_name LIMIT 1")) {
+                "SELECT item_id,item_name,description,cost_price,retail_price,quantity,active " +
+                        "FROM items WHERE active=1 AND item_name LIKE ? ORDER BY item_name LIMIT 1")) {
             ps.setString(1, "%" + q + "%");
             try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return map(rs); }
         } catch (SQLException e) { throw new RuntimeException(e); }
@@ -110,12 +151,21 @@ public class ItemDAOImpl implements ItemDAO {
 
     @Override
     public boolean existsById(int itemId) {
-        return false;
+        String sql = "SELECT 1 FROM items WHERE item_id=? AND active=1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    @Override public boolean insert(Item i) throws SQLException {
-        String sql = "INSERT INTO items (item_name,description,cost_price,retail_price,quantity) " +
-                "VALUES (?,?,?,?,?)"; // no item_id: AUTO_INCREMENT
+    /* ========= WRITE ========= */
+
+    @Override
+    public boolean insert(Item i) throws SQLException {
+        String sql = """
+            INSERT INTO items (item_name,description,cost_price,retail_price,quantity,active)
+            VALUES (?,?,?,?,?,1)
+            """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, i.getItemName());
             ps.setString(2, i.getDescription());
@@ -126,9 +176,13 @@ public class ItemDAOImpl implements ItemDAO {
         }
     }
 
-    @Override public boolean update(Item i) throws SQLException {
-        String sql = "UPDATE items SET item_name=?, description=?, cost_price=?, retail_price=?, quantity=? " +
-                "WHERE item_id=?";
+    @Override
+    public boolean update(Item i) throws SQLException {
+        String sql = """
+            UPDATE items
+            SET item_name=?, description=?, cost_price=?, retail_price=?, quantity=?
+            WHERE item_id=? AND active=1
+            """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, i.getItemName());
             ps.setString(2, i.getDescription());
@@ -140,20 +194,48 @@ public class ItemDAOImpl implements ItemDAO {
         }
     }
 
-    @Override public boolean delete(int itemId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM items WHERE item_id=?")) {
+    /** Soft delete: mark as inactive so FK history stays intact. */
+    @Override
+    public boolean delete(int itemId) throws SQLException {
+        String sql = "UPDATE items SET active=0 WHERE item_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, itemId);
             return ps.executeUpdate() == 1;
         }
     }
 
+    /* Optional: bring back archived item */
+    public boolean restore(int itemId) throws SQLException {
+        String sql = "UPDATE items SET active=1 WHERE item_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            return ps.executeUpdate() == 1;
+        }
+    }
+
+    /* ========= STOCK ========= */
+
     @Override
     public int getStock(int itemId) {
+        String sql = "SELECT quantity FROM items WHERE item_id=? AND active=1";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
         return 0;
     }
 
     @Override
     public boolean reduceStock(int itemId, int qty) throws SQLException {
-        return false;
+        // atomic decrement, prevents negative stock
+        String sql = "UPDATE items SET quantity = quantity - ? WHERE item_id=? AND active=1 AND quantity >= ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, qty);
+            ps.setInt(2, itemId);
+            ps.setInt(3, qty);
+            return ps.executeUpdate() == 1;
+        }
     }
 }

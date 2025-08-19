@@ -12,13 +12,12 @@ import java.util.List;
 public class ItemService {
     private final ItemDAO dao;
 
-    // ✅ Preferred DI-style constructor
+
     public ItemService(Connection conn) {
         this.dao = new ItemDAOImpl(conn);
     }
 
-    // ✅ Convenience no-arg constructor (for places that call new ItemService())
-    public ItemService() {
+       public ItemService() {
         try {
             this.dao = new ItemDAOImpl(DBUtil.getConnection());
         } catch (Exception e) {

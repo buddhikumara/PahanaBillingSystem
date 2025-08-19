@@ -3,7 +3,7 @@ package com.pahana.business.dto;
 import java.math.BigDecimal;
 
 public class ItemDTO {
-    private Integer itemId;         // null when adding (AUTO_INCREMENT)
+    private Integer itemId;
     private String itemName;
     private String description;
     private BigDecimal costPrice;

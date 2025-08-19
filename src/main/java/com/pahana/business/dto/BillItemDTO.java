@@ -4,8 +4,8 @@ public class BillItemDTO {
     private Integer itemId;
     private String itemName;
     private int qty;
-    private double unitPrice; // use items.retail_price at time of sale
-    private int stockQty;     // snapshot for warnings (from items.quantity)
+    private double unitPrice;
+    private int stockQty;
 
     public double getTotal(){ return qty * unitPrice; }
     public boolean isOutOfStock(){ return stockQty <= 0; }

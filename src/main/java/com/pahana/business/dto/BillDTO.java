@@ -5,13 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BillDTO {
-    private Integer billId;                 // DB-generated
-    private String customerId;              // in-memory only (DB has no column)
-    private String customerName;            // in-memory only
+    private Integer billId;
+    private String customerId;
+    private String customerName;
     private LocalDateTime createdAt = LocalDateTime.now();
     private final List<BillItemDTO> items = new ArrayList<>();
-    // payment (in-memory only; not persisted because no columns)
-    private String paymentMethod = "CASH";  // CASH/CARD (UI + PDF only)
+
+    private String paymentMethod = "CASH";
     private double paidAmount;
     private double discount;
     private String paymentType;
