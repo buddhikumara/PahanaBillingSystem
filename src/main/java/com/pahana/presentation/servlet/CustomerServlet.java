@@ -5,6 +5,7 @@ import com.pahana.persistence.dao.CustomerDAOImpl;   // <-- correct package
 import com.pahana.persistence.model.Customer;
 import com.pahana.persistence.model.User;
 import com.pahana.util.DBUtil;
+import com.pahana.util.EmailUtil;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -90,6 +91,26 @@ public class CustomerServlet extends HttpServlet {
                 }
                 customerDAO.insert(bind(req));
                 req.getSession().setAttribute("flashSuccess", "Customer added successfully.");
+                String customerEmail = req.getParameter("email"); // ensure your form has this field
+                String customerName  = req.getParameter("name");
+
+                if (customerEmail != null && !customerEmail.isBlank()) {
+                    try {
+                        String subject = "Welcome to Pahana Billing System";
+                        String body = "Dear " + customerName + ",\n\n"
+                                + "Your account has been registered successfully.\n"
+                                + "Thank you for choosing us!\n\n"
+                                + "Pahana Team";
+
+                        EmailUtil.sendEmail(customerEmail, subject, body);
+                        System.out.println("DEBUG: Email sent to " + customerEmail);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        // optional: log error or set flash message
+                    }
+                }
+
+
                 resp.sendRedirect(req.getContextPath() + "/customers?search=1&q=");
                 return;
 

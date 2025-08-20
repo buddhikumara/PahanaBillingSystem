@@ -127,6 +127,9 @@ public class ReportDAO {
         return out;
     }
 
+
+
+
     /* ===== Daily sales (rollup by date) ===== */
     public List<Map<String,Object>> dailySales(Connection c, LocalDate from, LocalDate to) throws SQLException {
         String sql = "SELECT DATE(bill_date) d, COUNT(*) bills, COALESCE(SUM(total_amount),0) total " +

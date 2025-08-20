@@ -14,9 +14,9 @@ public class ItemDAOImpl implements ItemDAO {
         Item i = new Item();
         i.setItemId(rs.getInt("item_id"));
         i.setItemName(rs.getString("item_name"));
-        // If your model uses BigDecimal:
+        try { i.setDescription(rs.getString("description")); } catch (SQLException ignore) {}
+        try { i.setCostPrice(rs.getBigDecimal("cost_price")); } catch (SQLException ignore) {}
         try { i.setRetailPrice(rs.getBigDecimal("retail_price")); } catch (SQLException ignore) {}
-        // If your model uses double instead, do: i.setRetailPrice(rs.getDouble("retail_price"));
         i.setQuantity(rs.getInt("quantity"));
         return i;
     }

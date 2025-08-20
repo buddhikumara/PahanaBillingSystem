@@ -26,7 +26,7 @@
 <nav class="navbar navbar-dark bg-dark">
   <div class="container-fluid">
     <a class="navbar-brand" href="<%=ctx%>/dashboard">Pahana Billing System</a>
-    <a class="btn btn-outline-light btn-sm" href="<%=ctx%>/billing">⇠ Back to Billing</a>
+    <a class="btn btn-outline-light btn-sm" href="<%=ctx%>/dashboard">⇠ Back to Dashboard</a>
   </div>
 </nav>
 

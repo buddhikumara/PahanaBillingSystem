@@ -186,7 +186,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control" value="${form.email}">
+              <input type="email" name="email" id="email" class="form-control" value="${form.email}">
               <div class="invalid-feedback">Please enter a valid email address.</div>
             </div>
             <div class="mb-3">
